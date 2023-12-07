@@ -110,3 +110,5 @@ group by
 	, state_id
     , don_vi_van_chuyen
     , mien
+
+-- user_id, group_id, system_id, team_id, country_id, category_id, warehouse_id, state_id
