@@ -1,0 +1,116 @@
+with tab_crm_lead as (
+select distinct     
+    crm_lead.id         
+    , 1 num_resale         
+    , sale_order.id order_id     
+    , case when sale_order.currency_id= 23 then sale_order.amount_total else sale_order.amount_total/sale_order.currency_rate end amount_resale     
+    , date_trunc('month',sale_order.confirmed_datetime + interval '7 hour + 0 minute + 0 second') thang_nhan          
+    , date_trunc('month', coalesce((select confirmed_datetime from sale_order where opportunity_id = crm_lead.sale_crm_lead_id order by id limit 1), crm_lead.created_datetime)   + interval '7 hour + 0 minute + 0 second') thang_tao       
+    , coalesce(utm_source.crm_group_id, sale_order.contact_creator_crm_group_id) mkt_crm_group_id       
+    , sale_order.crm_group_id        
+    , sale_order.team_id        
+    , sale_order.user_id       
+    , res_partner.country_type_id        
+    , product_category.id nhan_id    
+    , tab_sale.id sale_id 
+from  
+    sale_order 
+    left join crm_lead on crm_lead.id = sale_order.opportunity_id 
+    left join crm_lead tab_sale on crm_lead.sale_crm_lead_id = tab_sale.id
+    left join crmf99_system on crmf99_system.id = sale_order.crmf99_system_id     
+    left join utm_source on utm_source.id = sale_order.source_id   
+    left join product_category on product_category.id = crm_lead.product_category_id 
+    LEFT JOIN res_partner ON res_partner.ID = sale_order.partner_id   
+where     
+    crm_lead.opportunity_type = 'resale'   
+    and sale_order.summary_state not in ('rfq','cancel')    
+    and sale_order.confirmed_datetime is not null   
+    and crm_lead.date_open is not null  
+ ), 
+tab_combo as (
+select 
+    sale.sale_id
+    , sum(sale_order_line.product_uom_qty) so_luong
+from
+    (select distinct sale_id from tab_crm_lead ) sale 
+    inner join sale_order on sale_order.opportunity_id = sale.sale_id 
+    inner join sale_order_line on sale_order.id = sale_order_line.order_id
+    left join product_product on product_product.id = sale_order_line.product_id 
+    left join product_template on product_template.id = product_product.product_tmpl_id
+where 
+    (is_dong_ctkm_tang_kem is null or is_dong_ctkm_tang_kem!= 'true') 
+    and product_template.type= 'product'
+group by 
+    sale.sale_id
+)
+
+(select          
+  count(distinct id) so_khach         
+,sum( num_resale) so_don         
+,sum( amount_resale) resale      
+,case when thang_nhan is null then '1970-01-01'::date  else thang_nhan end thang_nhan           
+, 0 data_sale         
+,'1970-01-01'::date thang_tao             
+, mkt_crm_group_id         , crm_group_id        
+, team_id         , user_id        
+, country_type_id         , nhan_id   
+, case when tab_combo.so_luong>11 then 12 else tab_combo.so_luong end combo 
+, 'tong_so_khach_resale_co_don_thang_nhan_all' report_type 
+, 'zh' db_source        
+from tab_crm_lead left join tab_combo on tab_crm_lead.sale_id = tab_combo.sale_id     where 1=1      
+group by thang_nhan             
+, mkt_crm_group_id         
+, crm_group_id         
+, team_id        
+, user_id         
+, country_type_id        
+, nhan_id 
+, combo 
+) 
+union
+  (select          
+  count(distinct id) so_khach         
+,sum( num_resale) so_don         
+,sum( amount_resale) resale      
+,'1970-01-01'::date thang_nhan         
+, 0 data_sale         
+,case when thang_tao is null then '1970-01-01'::date  else thang_tao end thang_tao             
+, mkt_crm_group_id         , crm_group_id        
+, team_id         , user_id        
+, country_type_id         , nhan_id 
+, case when tab_combo.so_luong>11 then 12 else tab_combo.so_luong end combo 
+, 'tong_so_khach_resale_co_don_thang_tao_all' report_type  
+, 'zh' db_source       
+from tab_crm_lead left join tab_combo on tab_crm_lead.sale_id = tab_combo.sale_id       where 1=1      
+group by thang_tao             
+, mkt_crm_group_id         
+, crm_group_id         
+, team_id        
+, user_id         
+, country_type_id        
+, nhan_id 
+, combo 
+) 
+union
+  (select          
+  count(distinct id) so_khach         
+,sum( num_resale) so_don         
+,sum( amount_resale) resale      
+,thang_nhan         
+, 0 data_sale         
+,case when thang_tao is null then  '1970-01-01'::date  else thang_tao end thang_tao             
+, mkt_crm_group_id         , crm_group_id        
+, team_id         , user_id       
+, country_type_id         , nhan_id 
+, case when tab_combo.so_luong>11 then 12 else tab_combo.so_luong end combo 
+, 'tong_so_khach_resale_co_don' report_type 
+, 'zh' db_source      
+from tab_crm_lead left join tab_combo on tab_crm_lead.sale_id = tab_combo.sale_id       where 1=1      
+group by thang_nhan, thang_tao             
+, mkt_crm_group_id         
+, crm_group_id         
+, team_id        
+, user_id         
+, country_type_id        
+, nhan_id
+, combo )
