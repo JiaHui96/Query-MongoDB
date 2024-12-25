@@ -19,8 +19,14 @@ select
      coalesce(HE.n_comments) as fbmess_cmt,
     coalesce(HE.n_messages) as fbmess_mess,
     coalesce(HE.n_fbcd_comments,0) as fbcd_cmt,
-    (coalesce(HE.n_comments) + coalesce(HE.n_messages) + coalesce(HE.n_fbcd_comments,0)) as total_cmt_mess
-    
+    (coalesce(HE.n_comments) + coalesce(HE.n_messages) + coalesce(HE.n_fbcd_comments,0)) as total_cmt_mess,
+    HE.click_through_rate,
+    HE.cost_per_mille,
+    HE.impressions,
+    HE.cpc as cost_per_click,
+    HE.clicks,
+    HE."video_avg_timeWatched" as video_avg_timewatched,
+    HE.campaign_id
 from hr_daily_expense as HE 
     left join utm_source on  HE.source_id = utm_source.id 
     left join product_product on product_product.id = HE.expense_category_id 
@@ -37,6 +43,7 @@ select
     , crmf99_system_id
     , channel_id
     , country_type_id
+    , campaign_id
     , sum(amount) filter(where phan_loai!= 'KOL') tong_chi_phi
     , sum(amount) filter(where phan_loai= 'Chi phí') chi_phi 
     , sum(amount) filter(where phan_loai= 'Nguyên liệu') cp_nguyen_lieu 
@@ -44,7 +51,13 @@ select
     , sum(fbmess_cmt) fbmess_cmt
     , sum(fbmess_mess) fbmess_mess
     , sum(fbcd_cmt) fbcd_cmt
-    , sum(total_cmt_mess) total_cmt_mess
+    , sum(click_through_rate) click_through_rate
+    , sum(cost_per_mille) cost_per_mille
+    , sum(impressions) impressions
+    , sum(clicks) clicks
+    , sum(video_avg_timewatched) video_avg_timewatched
+    , sum(cost_per_click) cost_per_click
+    , count( distinct ticket_id) n_ticket
     , 'zh' db_source
 from data_raw
 group by 
@@ -57,3 +70,4 @@ group by
     , crmf99_system_id
     , channel_id
     , country_type_id
+    , campaign_id
